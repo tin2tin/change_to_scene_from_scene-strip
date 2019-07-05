@@ -17,12 +17,12 @@
 # ##### END GPL LICENSE BLOCK #####
 
 bl_info = {
-    "name": "Scene Change",
+    "name": "Scene Change via Scene Strip",
     "author": "tintwotin",
     "version": (1, 0, 0),
     "blender": (2, 80, 0),
-    "location": "The Context Menu in the Sequencer or Shift + Tab",
-    "description": "Opens the scene from the scene strip",
+    "location": "The Context Menu in the Sequencer or shortcut: Shift + Tab",
+    "description": "Opens the scene from the scene strip and returns to previous scene if no Scene Stip is the active strip",
     "warning": "",
     "wiki_url": "",
     "category": "Sequencer",
@@ -37,6 +37,8 @@ def act_strip(context):
     except AttributeError:
         return False
 
+class values():
+    prev_scene_change = ""
 
 class SEQUENCER_OT_scene_change(bpy.types.Operator):
     """Change scene to active strip scene"""
@@ -47,21 +49,24 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
 
     @classmethod
     def poll(self, context):
-        if context.scene and context.scene.sequence_editor and context.scene.sequence_editor.active_strip:
-            return context.scene.sequence_editor.active_strip.type == 'SCENE'
+        if context.scene and context.scene.sequence_editor:
+            return True
         else:
             return False
 
     def execute(self, context):
         strip = act_strip(context)
         scene = bpy.context.scene
-        #try:
-        if strip.type == "SCENE":                 
+
+        if strip.type != "SCENE" and values.prev_scene_change !="": # back
+            win = bpy.context.window_manager.windows[0]
+            win.scene = bpy.data.scenes[values.prev_scene_change]
+        elif strip.type == "SCENE":                                 # forward
             strip_scene = bpy.context.scene.sequence_editor.active_strip.scene.name
+            values.prev_scene_change = scene.name
             win = bpy.context.window_manager.windows[0]
             win.scene = bpy.data.scenes[strip_scene]
-        #except AttributeError:
-        #    pass
+
         return {"FINISHED"}
 
 def menu_func(self, context):
@@ -70,9 +75,9 @@ def menu_func(self, context):
 addon_keymaps = []
 
 def register():
-    bpy.utils.register_class(SEQUENCER_OT_scene_change)  
+    bpy.utils.register_class(SEQUENCER_OT_scene_change)
     bpy.types.SEQUENCER_MT_context_menu.append(menu_func)
-    
+
     wm = bpy.context.window_manager
     km = wm.keyconfigs.addon.keymaps.new(name='Scene Change', space_type='SEQUENCE_EDITOR')
     kmi = km.keymap_items.new(SEQUENCER_OT_scene_change.bl_idname, 'TAB', 'PRESS', ctrl=False, shift=True)
@@ -85,3 +90,5 @@ def unregister():
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
     addon_keymaps.clear()
+#register()
+#unregister()
