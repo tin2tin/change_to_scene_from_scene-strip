@@ -65,7 +65,7 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
         return {"FINISHED"}
 
 def menu_func(self, context):
-    self.layout.operator(SEQUENCER_OT_scene_change.bl_idname)
+    self.layout.operator("sequencer.change_scene")
 
 addon_keymaps = []
 
@@ -79,9 +79,9 @@ def register():
     addon_keymaps.append((km, kmi))
 
 def unregister():
-    bpy.utils.unregister_class(SEQUENCER_OT_scene_change.bl_idname)
-    bpy.types.SEQUENCER_MT_context_menu.append(menu_func)
+    bpy.utils.unregister_class(SEQUENCER_OT_scene_change)
+    bpy.types.SEQUENCER_MT_context_menu.remove(menu_func)
 
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
-    addon_keymaps.clear() 
+    addon_keymaps.clear()
