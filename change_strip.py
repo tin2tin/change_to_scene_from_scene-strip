@@ -49,24 +49,58 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
 
     @classmethod
     def poll(self, context):
-        if context.scene and context.scene.sequence_editor:
+        if context.scene:
             return True
         else:
             return False
 
     def execute(self, context):
+        if not bpy.context.scene.sequence_editor:
+            bpy.context.scene.sequence_editor_create()
         strip = act_strip(context)
         scene = bpy.context.scene
+        sequence = scene.sequence_editor
+        
+        if strip != None:                                                               # save camera
+            if strip.type == "SCENE":
+                if sequence.sequences_all[strip.name].scene_input == 'CAMERA' and strip.scene_camera!=None:
+                    camera = strip.scene_camera.name 
+                         
+        if strip == None:                                                               # no active strip
+            if values.prev_scene_change !="":                                           # a previous scene - go back
+                win = bpy.context.window_manager.windows[0]
+                win.scene = bpy.data.scenes[values.prev_scene_change]
+                return {"FINISHED"} 
+            elif values.prev_scene_change =="":                                         # no previous - do nothing
+                return {"FINISHED"}
+            
+        else:                                                                           # an active strip exists
+            
+            if strip.type != "SCENE" and values.prev_scene_change !="":                 # wrong strip type, but a previous scene - go back
+                win = bpy.context.window_manager.windows[0]
+                win.scene = bpy.data.scenes[values.prev_scene_change] 
+                        
+            elif strip.type == "SCENE":                                                 # correct strip type              
+                strip_scene = bpy.context.scene.sequence_editor.active_strip.scene.name
+                values.prev_scene_change = scene.name
+                
+                                                                                        # scene strip in 'Camera' and a camera is selected
+                        
+                if sequence.sequences_all[strip.name].scene_input == 'CAMERA' and strip.scene_camera!=None: 
+                    for area in bpy.context.screen.areas:
+                        if area.type == 'VIEW_3D':
+                            win = bpy.context.window_manager.windows[0]
+                            win.scene = bpy.data.scenes[strip_scene]
+                            bpy.context.scene.camera = bpy.data.objects[camera]         # select camera as view
+                            area.spaces.active.region_3d.view_perspective = 'CAMERA'    # use camera view  
+                                                     
+                else:                                                                   # no scene strip in 'Camera' mode or a camera may not be selected
 
-        if strip.type != "SCENE" and values.prev_scene_change !="": # back
-            win = bpy.context.window_manager.windows[0]
-            win.scene = bpy.data.scenes[values.prev_scene_change]
-        elif strip.type == "SCENE":                                 # forward
-            strip_scene = bpy.context.scene.sequence_editor.active_strip.scene.name
-            values.prev_scene_change = scene.name
-            win = bpy.context.window_manager.windows[0]
-            win.scene = bpy.data.scenes[strip_scene]
-
+                    strip_scene = bpy.context.scene.sequence_editor.active_strip.scene.name
+                    values.prev_scene_change = scene.name
+                    win = bpy.context.window_manager.windows[0]
+                    win.scene = bpy.data.scenes[strip_scene] 
+                                 
         return {"FINISHED"}
 
 def menu_func(self, context):
@@ -75,9 +109,9 @@ def menu_func(self, context):
 addon_keymaps = []
 
 def register():
-    bpy.utils.register_class(SEQUENCER_OT_scene_change)
+    bpy.utils.register_class(SEQUENCER_OT_scene_change)  
     bpy.types.SEQUENCER_MT_context_menu.append(menu_func)
-
+    
     wm = bpy.context.window_manager
     km = wm.keyconfigs.addon.keymaps.new(name='Scene Change', space_type='SEQUENCE_EDITOR')
     kmi = km.keymap_items.new(SEQUENCER_OT_scene_change.bl_idname, 'TAB', 'PRESS', ctrl=False, shift=True)
@@ -89,6 +123,6 @@ def unregister():
 
     for km, kmi in addon_keymaps:
         km.keymap_items.remove(kmi)
-    addon_keymaps.clear()
+    addon_keymaps.clear() 
 #register()
 #unregister()
