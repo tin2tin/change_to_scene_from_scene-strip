@@ -1,4 +1,3 @@
-
 # Scene Strip Tools
 
 # About:
@@ -40,6 +39,7 @@ bl_info = {
     "wiki_url": "https://github.com/tin2tin/PrevizCameraTools/",
     "category": "Sequencer"}
 
+
 import bpy
 import mathutils
 from mathutils import Matrix
@@ -49,17 +49,19 @@ from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
 from operator import attrgetter
 
-#Set 3D View to Global. Cameras can't be switched in local.
+# Set 3D View to Global. Cameras can't be switched in local.
 # Def currently not working
+
+
 def set3dViewGlobal():
     for area in bpy.context.screen.areas:
         if area.type == 'VIEW_3D':
             space = area.spaces[0]
-            if space.local_view: #check if using local view
+            if space.local_view:  # check if using local view
                 for region in area.regions:
                     if region.type == 'WINDOW':
-                        override = {'area': area, 'region': region} #override context
-                        bpy.ops.view3d.localview(override) #switch to global view
+                        override = {'area': area, 'region': region}  # override context
+                        bpy.ops.view3d.localview(override)  # switch to global view
 
 
 # ------------------------------------------------------------------------
@@ -68,25 +70,26 @@ def set3dViewGlobal():
 
 oldStrip = ""
 
+
 def SwichCameraAtFrameChange(*pArgs):
 
     global oldStrip
     scn = bpy.context.scene
     seq = scn.sequence_editor.sequences
-    seq=sorted(seq, key=attrgetter('channel', 'frame_final_start'))
+    seq = sorted(seq, key=attrgetter('channel', 'frame_final_start'))
     cf = scn.frame_current
 
     for i in seq:
         try:
-            if i.type == "SCENE" and i.name!=oldStrip:
+            if i.type == "SCENE" and i.name != oldStrip:
                 if (i.frame_final_start <= cf
                 and i.frame_final_end > cf
-                and i.scene.name==bpy.context.scene.name #Only if current scene in scene-strip
+                and i.scene.name == bpy.context.scene.name  # Only if current scene in scene-strip
                 and not i.mute):
                     for area in bpy.context.screen.areas:
                         if area.type == 'VIEW_3D':
-                            bpy.context.scene.camera = bpy.data.objects[i.scene_camera.name] # Select camera as view
-                            area.spaces.active.region_3d.view_perspective = 'CAMERA' # Use camera view
+                            bpy.context.scene.camera = bpy.data.objects[i.scene_camera.name]  # Select camera as view
+                            area.spaces.active.region_3d.view_perspective = 'CAMERA'  # Use camera view
                             oldStrip = i.name
                             break
 
@@ -101,6 +104,7 @@ def SwichCameraAtFrameChange(*pArgs):
 def attachAsHandler():
     bpy.app.handlers.frame_change_pre.append(SwichCameraAtFrameChange)
 
+
 def detachAsHandler():
     bpy.app.handlers.frame_change_pre.clear()
 
@@ -112,8 +116,8 @@ def detachAsHandler():
 class PropertyGroup(bpy.types.PropertyGroup):
 
     LinkSeqTo3DView: bpy.props.BoolProperty(
-        name = 'Link Sequencer to 3D View',
-        description = 'Let scene strips swich cameras in 3D Viewport')
+        name='Link Sequencer to 3D View',
+        description='Let scene strips swich cameras in 3D Viewport')
 
 
 class SequencerButtonsPanel:
@@ -177,15 +181,15 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
                 # layout.label(text="Preview")
                 layout.prop(scene.render, "film_transparent")
 
-        col=layout.column(align=(False))
-        col.use_property_split=False
-        col=col.box()
-        manager=context.scene.asset_manager
+        col = layout.column(align=(False))
+        col.use_property_split = False
+        col = col.box()
+        manager = context.scene.asset_manager
 
         col.prop(manager, "LinkSeqTo3DView", text="Link Sequencer to 3D Viewport", icon="LINKED")
-        col.operator("view3d.add_scene_strip", text = "Add Camera as Scene Strip", icon="CAMERA_DATA")
-        col.operator("sequencer.convert_cameras", text = "Convert Camera Markers to Strips", icon="MARKER")
-        col.operator("sequencer.change_scene", text = "Toggle Scene Strip", icon="VIEW3D")
+        col.operator("view3d.add_scene_strip", text="Add Camera as Scene Strip", icon="CAMERA_DATA")
+        col.operator("sequencer.convert_cameras", text="Convert Camera Markers to Strips", icon="MARKER")
+        col.operator("sequencer.change_scene", text="Toggle Scene Strip", icon="VIEW3D")
 
         # check if bool property is enabled
         if (context.scene.asset_manager.LinkSeqTo3DView == True):
@@ -199,13 +203,13 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
 #     Add Camera as Scene Strip in Sequencer
 # ------------------------------------------------------------------------
 
-class THREEDPREVIEW_PT_AddSceneStrip(bpy.types.Operator) :
+class THREEDPREVIEW_PT_AddSceneStrip(bpy.types.Operator):
     """Adds current camera as a scene strip to the Sequencer"""
     bl_idname = "view3d.add_scene_strip"
     bl_label = "Camera"
-    bl_options = {'REGISTER',"UNDO"}
+    bl_options = {'REGISTER', "UNDO"}
 
-    def invoke(self, context, event) :
+    def invoke(self, context, event):
 
         if not bpy.context.scene.sequence_editor:
             bpy.context.scene.sequence_editor_create()
@@ -216,7 +220,7 @@ class THREEDPREVIEW_PT_AddSceneStrip(bpy.types.Operator) :
         addSceneOut = scn.frame_end
         addSceneChannel = 2
         addSceneTlStart = cf
-        newScene=seq.sequences.new_scene('Scene', bpy.context.scene, addSceneChannel, addSceneTlStart)
+        newScene = seq.sequences.new_scene('Scene', bpy.context.scene, addSceneChannel, addSceneTlStart)
         seq.sequences_all[newScene.name].scene_camera = bpy.data.objects[bpy.context.scene.camera.name]
         seq.sequences_all[newScene.name].animation_offset_start = addSceneIn
         seq.sequences_all[newScene.name].frame_final_end = addSceneOut
@@ -236,57 +240,57 @@ class SEQUENCE_PT_convert_cameras(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        scene=bpy.context.scene
+        scene = bpy.context.scene
 
-        if not bpy.context.scene.sequence_editor: #create sequence, if missing
+        if not bpy.context.scene.sequence_editor:  # create sequence, if missing
             bpy.context.scene.sequence_editor_create()
 
-        marker_camera=[]
-        marker_frame=[]
-        marker_name=[]
-        cam_marker=[]
-        cnt=0
-        mi=bpy.context.scene.timeline_markers.items()
-        for marker in scene.timeline_markers: #find the cameras and their frame
+        marker_camera = []
+        marker_frame = []
+        marker_name = []
+        cam_marker = []
+        cnt = 0
+        mi = bpy.context.scene.timeline_markers.items()
+        for marker in scene.timeline_markers:  # find the cameras and their frame
 
             if marker.camera:
-                cam_marker.insert(cnt,[marker.frame, marker.camera.name])#mi[cnt][0]])
-                cnt+=1
+                cam_marker.insert(cnt, [marker.frame, marker.camera.name])  # mi[cnt][0]])
+                cnt += 1
 
-        if len(cam_marker)==0:         # cancel if no cameras
+        if len(cam_marker) == 0:         # cancel if no cameras
             return {'CANCELLED'}
 
-        cam_marker=sorted(cam_marker,key=lambda mark: mark[0]) # Sort the markers after frame nr.
+        cam_marker = sorted(cam_marker, key=lambda mark: mark[0])  # Sort the markers after frame nr.
 
-        #add cameras to sequencer
-        cnt=0 # counter
+        # add cameras to sequencer
+        cnt = 0  # counter
         for i in cam_marker:
             cf = cam_marker[cnt][0]
             addSceneIn = cf
 
-            if cnt<len(cam_marker)-1: # find out frame
+            if cnt < len(cam_marker)-1:  # find out frame
                 addSceneOut = cam_marker[cnt+1][0]
             else:
-                addSceneOut = addSceneIn +151 #last clip extented 30 fps*5 frames + an ekstra frame for the hack.
-                bpy.context.scene.frame_end=addSceneIn +150 # extent preview area or add scene strip may fail
+                addSceneOut = addSceneIn+151  # last clip extented 30 fps*5 frames + an ekstra frame for the hack.
+                bpy.context.scene.frame_end = addSceneIn+150  # extent preview area or add scene strip may fail
 
             addSceneChannel = 1          # attempt to add in this channel - if full, strips will be moved upwards
             addSceneTlStart = cf
 
             # Hack: adding a scene strip will make a hard cut one frame before preview area end.
-            bpy.context.scene.frame_end=bpy.context.scene.frame_end+1
+            bpy.context.scene.frame_end = bpy.context.scene.frame_end+1
 
             # add scene strip in current scene at in and out frame numbers
-            newScene=bpy.context.scene.sequence_editor.sequences.new_scene(cam_marker[cnt][1], bpy.context.scene, addSceneChannel, addSceneTlStart)
+            newScene = bpy.context.scene.sequence_editor.sequences.new_scene(cam_marker[cnt][1], bpy.context.scene, addSceneChannel, addSceneTlStart)
             newScene.scene_camera = bpy.data.objects[cam_marker[cnt][1]]
-            newScene=bpy.context.scene.sequence_editor.sequences_all[newScene.name]
+            newScene = bpy.context.scene.sequence_editor.sequences_all[newScene.name]
             newScene.animation_offset_start = addSceneIn
             newScene.frame_final_end = addSceneOut
             newScene.frame_start = cf
-            cnt+=1
+            cnt += 1
 
             # Hack: remove the extra frame again of the preview area.
-            bpy.context.scene.frame_end=bpy.context.scene.frame_end-1
+            bpy.context.scene.frame_end = bpy.context.scene.frame_end-1
 
         return {'FINISHED'}
 
@@ -294,14 +298,17 @@ class SEQUENCE_PT_convert_cameras(bpy.types.Operator):
 #     Toggle change to scene strip in 3d view
 # ------------------------------------------------------------------------
 
+
 def act_strip(context):
     try:
         return context.scene.sequence_editor.active_strip
     except AttributeError:
         return False
 
+
 class values():
     prev_scene_change = ""
+
 
 class SEQUENCER_OT_scene_change(bpy.types.Operator):
     """Change scene to active strip scene"""
@@ -326,20 +333,20 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
 
         if strip != None:                                                               # save camera
             if strip.type == "SCENE":
-                if sequence.sequences_all[strip.name].scene_input == 'CAMERA' and strip.scene_camera!=None:
+                if sequence.sequences_all[strip.name].scene_input == 'CAMERA' and strip.scene_camera != None:
                     camera = strip.scene_camera.name
 
         if strip == None:                                                               # no active strip
-            if values.prev_scene_change !="":                                           # a previous scene - go back
+            if values.prev_scene_change != "":                                           # a previous scene - go back
                 win = bpy.context.window_manager.windows[0]
                 win.scene = bpy.data.scenes[values.prev_scene_change]
                 return {"FINISHED"}
-            elif values.prev_scene_change =="":                                         # no previous - do nothing
+            elif values.prev_scene_change == "":                                         # no previous - do nothing
                 return {"FINISHED"}
 
         else:                                                                           # an active strip exists
 
-            if strip.type != "SCENE" and values.prev_scene_change !="":                 # wrong strip type, but a previous scene - go back
+            if strip.type != "SCENE" and values.prev_scene_change != "":                 # wrong strip type, but a previous scene - go back
                 win = bpy.context.window_manager.windows[0]
                 win.scene = bpy.data.scenes[values.prev_scene_change]
 
@@ -349,7 +356,7 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
 
                                                                                         # scene strip in 'Camera' and a camera is selected
 
-                if sequence.sequences_all[strip.name].scene_input == 'CAMERA' and strip.scene_camera!=None:
+                if sequence.sequences_all[strip.name].scene_input == 'CAMERA' and strip.scene_camera != None:
                     for area in bpy.context.screen.areas:
                         if area.type == 'VIEW_3D':
                             win = bpy.context.window_manager.windows[0]
@@ -366,22 +373,29 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
 
         return {"FINISHED"}
 
+
 def menu_toggle_scene(self, context):
     self.layout.separator()
     self.layout.operator("sequencer.change_scene")
 
+
 def menu_add_camera(self, context):
     self.layout.operator("view3d.add_scene_strip", icon="VIEW_CAMERA")
 
+
 def menu_link_tdview(self, context):
-    layout=self.layout
-    col=layout.column(align=(False))
+    layout = self.layout
+    col = layout.column(align=(False))
+    col = col.use_property_split = True
+    col = col.alignment = 'RIGHT'
     manager = context.scene.asset_manager
     col.prop(manager, "LinkSeqTo3DView", text="Preview in 3D View")
+
 
 def menu_convert_markers(self, context):
     self.layout.separator()
     self.layout.operator("sequencer.convert_cameras")
+
 
 classes = (
     THREEDPREVIEW_PT_AddSceneStrip,
@@ -394,6 +408,7 @@ classes = (
 register, unregister = bpy.utils.register_classes_factory(classes)
 
 addon_keymaps = []
+
 
 def register():
 
@@ -412,11 +427,12 @@ def register():
         register_class(i)
     bpy.types.Scene.asset_manager = bpy.props.PointerProperty(type=PropertyGroup)
 
+
 def unregister():
 
     bpy.types.SEQUENCER_MT_strip.remove(menu_toggle_scene)
     bpy.types.SEQUENCER_MT_context_menu.remove(menu_toggle_scene)
-    bpy.types.SEQUENCER_MT_header.remove(menu_link_tdview)
+    bpy.types.SEQUENCER_HT_header.remove(menu_link_tdview)
     bpy.types.SEQUENCER_MT_add.remove(menu_add_camera)
     bpy.types.SEQUENCER_MT_marker.remove(menu_convert_markers)
 
@@ -427,7 +443,7 @@ def unregister():
     for i in classes:
         unregister_class(i)
 
-if __name__ == "__main__" :
+if __name__ == "__main__":
     register()
 
-#unregister()
+# unregister()
