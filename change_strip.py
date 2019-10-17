@@ -134,17 +134,13 @@ class SequencerButtonsPanel:
 
 
 class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
-    bl_label = "Scene"
-    bl_category = "3D Link"
+    bl_label = "3D Scene Tools"
+    bl_category = "3D Scene Tools"
 
     @classmethod
     def poll(cls, context):
-        if not cls.has_sequencer(context):
-            return False
-
-        strip = act_strip(context)
-        if not strip:
-            return False
+#        if not cls.has_sequencer(context):
+#            return False
 
         return True
 
