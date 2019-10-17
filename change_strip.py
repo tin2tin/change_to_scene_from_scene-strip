@@ -134,15 +134,19 @@ class SequencerButtonsPanel:
 
 
 class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
-    bl_label = "3D Scene Tools"
-    bl_category = "3D Scene Tools"
+    bl_label = "Scene"
+    bl_category = "Strip"
 
     @classmethod
     def poll(cls, context):
-#        if not cls.has_sequencer(context):
-#            return False
+        if not cls.has_sequencer(context):
+            return False
 
-        return True
+        strip = act_strip(context)
+        if not strip:
+            return False
+
+        return (strip.type == 'SCENE')
 
     def draw(self, context):
         layout = self.layout
@@ -153,12 +157,37 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
 
         layout.active = not strip.mute
 
+        layout.template_ID(strip, "scene")
+
+        scene = strip.scene
+        layout.prop(strip, "scene_input")
+
+        if scene:
+            layout.prop(scene, "audio_volume", text="Volume")
+
+        if strip.scene_input == 'CAMERA':
+            layout.alignment = 'RIGHT'
+            sub = layout.column(align=True)
+            split = sub.split(factor=0.5, align=True)
+            split.alignment = 'RIGHT'
+            split.label(text="Camera")
+            split.template_ID(strip, "scene_camera")
+
+            layout.prop(strip, "use_grease_pencil", text="Show Grease Pencil")
+
+            if scene:
+                # Warning, this is not a good convention to follow.
+                # Expose here because setting the alpha from the 'Render' menu is very inconvenient.
+                # layout.label(text="Preview")
+                layout.prop(scene.render, "film_transparent")
+
         col = layout.column(align=(False))
         col.use_property_split = False
         col = col.box()
         manager = context.scene.asset_manager
 
         col.prop(manager, "LinkSeqTo3DView", text="Link Sequencer to 3D Viewport", icon="LINKED")
+        col.operator("object.add_cam_to_view", text="Convert View to Camera", icon="CAMERA_DATA")
         col.operator("view3d.add_scene_strip", text="Add Camera as Scene Strip", icon="CAMERA_DATA")
         col.operator("sequencer.convert_cameras", text="Convert Camera Markers to Strips", icon="MARKER")
         col.operator("sequencer.change_scene", text="Toggle Scene Strip", icon="VIEW3D")
@@ -346,20 +375,145 @@ class SEQUENCER_OT_scene_change(bpy.types.Operator):
         return {"FINISHED"}
 
 
+# ------------------------------------------------------------------------
+#     Add Cam To View by Dmitry aka Rockbard
+# ------------------------------------------------------------------------
+
+class AddCamToView(bpy.types.Operator):
+    """Adds dynamic brush(es) and canvas in one click"""
+    bl_idname = "object.add_cam_to_view"
+    bl_label = "Add Camera to View"
+    bl_options = {'REGISTER', 'UNDO'}
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "View"
+    #bl_label = "3D Cursor"
+
+    def execute(self, context):
+        
+        # Setting variables
+        context = bpy.context
+        scene = context.scene
+        active = bpy.context.scene.objects.active
+        selected = bpy.context.selected_objects
+        
+        #getting status of view
+        #print(bpy.context.space_data.region_3d.is_perspective)
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == 'VIEW_3D':
+                        if space.region_3d.view_perspective == 'CAMERA':
+                            return {'FINISHED'}
+        
+        #getting  vieport focal lens
+        area = bpy.context.area
+        old_type = area.type
+        area.type = 'VIEW_3D'
+        focal = bpy.context.space_data.lens
+        area.type = old_type
+        dofObject= bpy.data.cameras[bpy.context.scene.camera.name].dof_object
+        dofDistance= bpy.data.cameras[bpy.context.scene.camera.name].dof_distance 
+        gpu_dofFstop= bpy.data.cameras[bpy.context.scene.camera.name].gpu_dof.fstop      
+        
+        # Adding camera
+        bpy.ops.object.camera_add()
+        
+        #setting focal length
+        bpy.context.object.data.lens = focal
+
+        #Setting as active camera                
+        currentCameraObj = bpy.data.objects[bpy.context.active_object.name]
+        scene.camera = currentCameraObj
+
+        #setting focal length
+        active_cam = bpy.context.scene.camera
+        bpy.data.cameras[active_cam.name].lens = focal
+                
+        bpy.data.cameras[active_cam.name].dof_distance = dofDistance
+                
+        bpy.data.cameras[active_cam.name].dof_object = dofObject
+
+        bpy.data.cameras[active_cam.name].gpu_dof.fstop = gpu_dofFstop                
+        
+        #setting sensor
+        bpy.context.object.data.sensor_width = 55
+
+        #camera to view
+        bpy.ops.view3d.camera_to_view()    
+                        
+        # Range mapping focus to locZ
+        def translate(value, leftMin, leftMax, rightMin, rightMax):
+            # Figure out how 'wide' each range is
+            leftSpan = leftMax - leftMin
+            rightSpan = rightMax - rightMin
+
+            # Convert the left range into a 0-1 range (float)
+            valueScaled = float(value - leftMin) / float(leftSpan)
+
+            # Convert the 0-1 range into a value in the right range.
+            x = rightMin + (valueScaled * rightSpan)
+            return(x)
+
+        locZ = float("%.1f" % translate(focal,13,45,0.1,0.7))
+
+        #fit canera to viewport
+        def viewFrom(screen):
+    
+            for obj in screen.areas:
+                if (obj.type == 'VIEW_3D'):
+                    return obj
+            return None
+
+        v3d = viewFrom(bpy.context.screen)
+        r3d = v3d.spaces[0].region_3d
+
+        r3d.view_camera_offset = (0,0)
+        r3d.view_camera_zoom = 29.13
+        
+        #Move camera backwards on local axis
+        #ob = bpy.context.scene.objects.active
+        #loc = Matrix.Translation((0.0, 0.0, locZ*22))
+        #ob.matrix_basis *= loc
+                        
+        # Deselecting all
+        bpy.ops.object.select_all(action='DESELECT')
+
+        # Selecting previously selected object and making it active
+        bpy.context.scene.objects.active = active
+        
+        #if something was selected, select it again
+        try:
+            if len(selected) != 0:
+                active.select = True
+        except AttributeError:
+            pass    
+        #camera off
+        #bpy.ops.view3d.viewnumpad(type='CAMERA')
+
+        # Unchecking "Lock camera"
+        bpy.context.space_data.lock_camera = False
+        
+        return {'FINISHED'}
+
+
 def menu_toggle_scene(self, context):
     self.layout.separator()
     self.layout.operator("sequencer.change_scene")
 
 
-def menu_add_camera(self, context):
+def menu_add_strip_camera(self, context):
     self.layout.operator("view3d.add_scene_strip", icon="VIEW_CAMERA")
+
+def menu_add_camera(self, context):
+    self.layout.operator("object.add_cam_to_view", text = "Add Camera", icon='CAMERA_DATA')#, icon='CAMERA_DATA') 
 
 
 def menu_link_tdview(self, context):
     layout = self.layout
     col = layout.column(align=(False))
-    col = col.use_property_split = True
-    col = col.alignment = 'RIGHT'
+    #col = col.use_property_split = True
+    #col = col.alignment = 'RIGHT'
     manager = context.scene.asset_manager
     col.prop(manager, "LinkSeqTo3DView", text="Preview in 3D View")
 
@@ -369,12 +523,46 @@ def menu_convert_markers(self, context):
     self.layout.operator("sequencer.convert_cameras")
 
 
+class VIEW3D_PT_view3d_storyboard_tools(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "Storyboard"
+    bl_label = "Storyboard Tools"
+    bl_idname = "view3d.storyboard_tools"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+        col = layout.column(align=(False))
+        col.use_property_split = False
+        col = col.box()
+        manager = context.scene.asset_manager
+
+        col.prop(manager, "LinkSeqTo3DView", text="Link Sequencer to 3D Viewport", icon="LINKED")
+        col.operator("object.add_cam_to_view", text="Convert View to Camera", icon="CAMERA_DATA")
+        col.operator("view3d.add_scene_strip", text="Add Camera as Scene Strip", icon="CAMERA_DATA")
+        col.operator("sequencer.convert_cameras", text="Convert Camera Markers to Strips", icon="MARKER")
+        col.operator("sequencer.change_scene", text="Toggle Scene Strip", icon="VIEW3D")
+
+        # check if bool property is enabled
+        if (context.scene.asset_manager.LinkSeqTo3DView == True):
+            SwichCameraAtFrameChange()
+            attachAsHandler()
+            return {'FINISHED'}
+        else:
+            detachAsHandler()
+            return {'CANCELED'}
+
+
 classes = (
     THREEDPREVIEW_PT_AddSceneStrip,
     PropertyGroup,
     SEQUENCE_PT_convert_cameras,
     SEQUENCER_PT_scene,
     SEQUENCER_OT_scene_change,
+    AddCamToView,
+    VIEW3D_PT_view3d_storyboard_tools,
     )
 
 register, unregister = bpy.utils.register_classes_factory(classes)
@@ -387,7 +575,7 @@ def register():
     bpy.types.SEQUENCER_MT_strip.append(menu_toggle_scene)
     bpy.types.SEQUENCER_MT_context_menu.append(menu_toggle_scene)
     bpy.types.SEQUENCER_HT_header.append(menu_link_tdview)
-    bpy.types.SEQUENCER_MT_add.prepend(menu_add_camera)
+    bpy.types.SEQUENCER_MT_add.prepend(menu_add_strip_camera)
     bpy.types.SEQUENCER_MT_marker.append(menu_convert_markers)
 
     wm = bpy.context.window_manager
@@ -405,7 +593,7 @@ def unregister():
     bpy.types.SEQUENCER_MT_strip.remove(menu_toggle_scene)
     bpy.types.SEQUENCER_MT_context_menu.remove(menu_toggle_scene)
     bpy.types.SEQUENCER_HT_header.remove(menu_link_tdview)
-    bpy.types.SEQUENCER_MT_add.remove(menu_add_camera)
+    bpy.types.SEQUENCER_MT_add.remove(menu_add_strip_camera)
     bpy.types.SEQUENCER_MT_marker.remove(menu_convert_markers)
 
     for km, kmi in addon_keymaps:
