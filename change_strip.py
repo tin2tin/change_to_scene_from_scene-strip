@@ -135,7 +135,7 @@ class SequencerButtonsPanel:
 
 class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
     bl_label = "Scene"
-    bl_category = "Strip"
+    bl_category = "3D Link"
 
     @classmethod
     def poll(cls, context):
@@ -156,30 +156,6 @@ class SEQUENCER_PT_scene(SequencerButtonsPanel, Panel):
         strip = act_strip(context)
 
         layout.active = not strip.mute
-
-        layout.template_ID(strip, "scene")
-
-        scene = strip.scene
-        layout.prop(strip, "scene_input")
-
-        if scene:
-            layout.prop(scene, "audio_volume", text="Volume")
-
-        if strip.scene_input == 'CAMERA':
-            layout.alignment = 'RIGHT'
-            sub = layout.column(align=True)
-            split = sub.split(factor=0.5, align=True)
-            split.alignment = 'RIGHT'
-            split.label(text="Camera")
-            split.template_ID(strip, "scene_camera")
-
-            layout.prop(strip, "use_grease_pencil", text="Show Grease Pencil")
-
-            if scene:
-                # Warning, this is not a good convention to follow.
-                # Expose here because setting the alpha from the 'Render' menu is very inconvenient.
-                # layout.label(text="Preview")
-                layout.prop(scene.render, "film_transparent")
 
         col = layout.column(align=(False))
         col.use_property_split = False
