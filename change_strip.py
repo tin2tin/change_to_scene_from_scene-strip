@@ -33,7 +33,7 @@ bl_info = {
     "author": "Tintwotin",
     "version": (0, 2),
     "blender": (2, 80, 0),
-    "location": "Sequencer Sidebar Scene Strip Properties, Add Menu and Context Menu",
+    "location": "Sequencer Sidebar 3D Link tab, Add Menu and Context Menu",
     "description": "Preview Sequencer Scene Strip edits in the 3D Viewport",
     "warning": "",
     "wiki_url": "https://github.com/tin2tin/PrevizCameraTools/",
